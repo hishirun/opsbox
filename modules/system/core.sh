@@ -18,6 +18,7 @@ GAI_CONF="/etc/gai.conf"
 BACKUP_BASE="/root/dmit-backup"
 TCP_SYSCTL_BACKUP="${BACKUP_BASE}/tcp-sysctl.orig"
 IPV6_SYSCTL_BACKUP="${BACKUP_BASE}/ipv6-sysctl.orig"
+ICMP_SYSCTL_FILE="/etc/sysctl.d/99-opsbox-icmp.conf"
 
 # Dynamic TCP fitting (reviewed tcpfit release; never execute mutable main directly)
 TCPFIT_REVIEWED_VERSION="0.5.4"
@@ -1203,7 +1204,10 @@ tcp_restore_runtime_backup() {
 }
 
 tcp_fixed_profile_content() {
-  cat <<'EOF'
+  local buffer="${1:-67108864}"
+  is_uint_in_range "$buffer" 65536 536870912 || return 1
+  buffer=$((10#$buffer))
+  cat <<EOF
 # managed by dmitbox.sh - fixed common TCP tuning
 # Static compatibility profile: no bandwidth or RTT measurement.
 net.core.default_qdisc = fq
@@ -1213,10 +1217,10 @@ net.core.netdev_max_backlog = 16384
 net.core.somaxconn = 8192
 net.ipv4.tcp_max_syn_backlog = 8192
 
-net.core.rmem_max = 67108864
-net.core.wmem_max = 67108864
-net.ipv4.tcp_rmem = 4096 87380 67108864
-net.ipv4.tcp_wmem = 4096 65536 67108864
+net.core.rmem_max = ${buffer}
+net.core.wmem_max = ${buffer}
+net.ipv4.tcp_rmem = 4096 87380 ${buffer}
+net.ipv4.tcp_wmem = 4096 65536 ${buffer}
 
 net.ipv4.tcp_mtu_probing = 1
 net.ipv4.tcp_fastopen = 3
@@ -1239,7 +1243,10 @@ tcp_fixed_profile_keys() {
 }
 
 tcp_fixed_runtime_verify() {
-  local line="" key="" expected="" actual=""
+  local line="" key="" expected="" actual="" buffer=""
+  [[ -s "$TUNE_SYSCTL_FILE" && ! -L "$TUNE_SYSCTL_FILE" ]] || return 1
+  buffer="$(awk -F= '$1 ~ /^[[:space:]]*net\.core\.rmem_max[[:space:]]*$/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' "$TUNE_SYSCTL_FILE")"
+  is_uint_in_range "$buffer" 65536 536870912 || return 1
   while IFS= read -r line; do
     [[ "$line" == *=* ]] || continue
     key="${line%%=*}"
@@ -1250,7 +1257,7 @@ tcp_fixed_runtime_verify() {
     actual="$(sysctl -n "$key" 2>/dev/null || true)"
     actual="$(tcp_value_normalize "$actual")"
     [[ -n "$actual" && "$actual" == "$expected" ]] || return 1
-  done < <(tcp_fixed_profile_content | sed -E '/^[[:space:]]*(#|$)/d')
+  done < <(tcp_fixed_profile_content "$buffer" | sed -E '/^[[:space:]]*(#|$)/d')
   return 0
 }
 
@@ -1275,7 +1282,7 @@ tcp_fixed_preflight() {
   fi
   local available="" key="" unsupported=()
   if tcpfit_tuning_active; then
-    warn "动态实测调优正在生效，不能叠加固定通用调优"
+    warn "动态实测调优正在生效，不能叠加固定调优"
     info "请先进入【动态实测调优】按 tcpfit 快照完整回滚"
     return 1
   fi
@@ -1292,7 +1299,7 @@ tcp_fixed_preflight() {
   case " ${available} " in
     *" bbr "*) ;;
     *)
-      warn "当前内核未提示 BBR，固定通用调优已取消"
+      warn "当前内核未提示 BBR，固定调优已取消"
       info "可先使用【检查 BBR 支持】确认；本脚本不会为此替换第三方内核"
       return 1
       ;;
@@ -1328,18 +1335,21 @@ tcp_fixed_transaction_restore() {
 
 tcp_fixed_apply() {
   local rollback="" candidate="" staged="" log="" ifc="" root_qdisc="" rc=0
+  local buffer="${1:-67108864}"
+  is_uint_in_range "$buffer" 65536 536870912 || { warn "TCP 窗口大小无效"; return 1; }
+  buffer=$((10#$buffer))
   tcp_fixed_preflight || return 1
 
   if [[ -s "$TUNE_SYSCTL_FILE" ]] && \
-     cmp -s "$TUNE_SYSCTL_FILE" <(tcp_fixed_profile_content) && \
+     cmp -s "$TUNE_SYSCTL_FILE" <(tcp_fixed_profile_content "$buffer") && \
      tcp_fixed_runtime_verify; then
-    ok "固定通用调优已经正常生效，无需重复应用"
+    ok "固定调优已经正常生效，无需重复应用"
     return 0
   fi
 
   menu_section "固定配置预览"
   print_kv "拥塞控制 / 队列" "BBR / FQ"
-  print_kv "TCP 缓冲上限" "64 MiB（固定值）"
+  print_kv "TCP 窗口 / 缓冲上限" "${buffer} 字节（$((buffer / 1048576)) MiB，固定值）"
   print_kv "连接队列" "somaxconn 8192 / SYN backlog 8192"
   print_kv "其他" "MTU 探测、TCP Fast Open、SYN Cookie"
   print_kv "固定状态" "$(tcp_fixed_status_text)"
@@ -1348,10 +1358,10 @@ tcp_fixed_apply() {
     root_qdisc="$(tc qdisc show dev "$ifc" 2>/dev/null | awk '/ root / {print $2; exit}' || true)"
     [[ -n "$root_qdisc" ]] && print_kv "当前出口队列" "${ifc} / ${root_qdisc}"
   fi
-  warn "该模式不测速，也不会按带宽、RTT 或内存推导参数；适合作为快速兼容预览"
+  info "参数将固定保存；不会自动测速或随网络变化重新调整"
   info "不会覆盖当前网卡已有效 CAKE、HTB、TBF、NetEm 等手工 tc 规则"
   [[ -s "$DMIT_TCP_DEFAULT_FILE" ]] && info "现有 DMIT 默认参数将切换为固定通用参数"
-  confirm_word "FIXED" "确认应用固定通用调优请输入 FIXED > " || { info "已取消"; return 0; }
+  confirm_word "FIXED" "确认应用固定调优请输入 FIXED > " || { info "已取消"; return 0; }
 
   tcp_backup_runtime_once || return 1
   rollback="$(mktemp -d /tmp/dmitbox-tcp-fixed.XXXXXX)" || {
@@ -1360,7 +1370,7 @@ tcp_fixed_apply() {
   }
   candidate="${rollback}/candidate.conf"
   log="${rollback}/sysctl.log"
-  tcp_fixed_profile_content > "$candidate" || {
+  tcp_fixed_profile_content "$buffer" > "$candidate" || {
     warn "无法生成固定调优配置"
     rm -rf -- "$rollback"
     return 1
@@ -1401,7 +1411,7 @@ tcp_fixed_apply() {
     printf '%s\n' '应用后运行值校验不一次' >> "$log"
   fi
   if (( rc != 0 )); then
-    warn "固定通用调优应用失败，正在恢复修改前状态"
+    warn "固定调优应用失败，正在恢复修改前状态"
     tail -n 20 "$log" 2>/dev/null || true
     tcp_fixed_transaction_restore "$rollback" || \
       warn "自动回滚不完整，请进入【恢复修改前参数】再次恢复"
@@ -1411,12 +1421,147 @@ tcp_fixed_apply() {
   fi
 
   rm -rf -- "$rollback"
-  ok "固定通用调优已应用并通过逐项运行值校验"
+  ok "固定调优已应用并通过逐项运行值校验"
   info "持久配置）${TUNE_SYSCTL_FILE}"
   if [[ -n "$root_qdisc" && "$root_qdisc" != "fq" ]]; then
     info "当前网卡仍使用 ${root_qdisc}；脚本未覆盖已有活动 tc 队列"
   fi
   bbr_check
+}
+
+# Fixed window sizing uses manual link estimates; it never runs a speed test.
+tcp_window_buffer_bytes() {
+  local bandwidth="$1" rtt="$2" memory_mb="$3" buffer cap
+  is_uint_in_range "$bandwidth" 1 1000000 || return 1
+  is_uint_in_range "$rtt" 1 60000 || return 1
+  is_uint_in_range "$memory_mb" 1 67108864 || return 1
+  bandwidth=$((10#$bandwidth)); rtt=$((10#$rtt)); memory_mb=$((10#$memory_mb))
+  buffer=$((bandwidth * rtt * 250)) # 2 x BDP, in bytes (Mbps x ms x 125).
+  (( buffer >= 16777216 )) || buffer=16777216
+  (( buffer <= 536870912 )) || buffer=536870912
+  cap=$((memory_mb * 1048576 * 30 / 100))
+  (( buffer <= cap )) || buffer=$cap
+  printf '%s\n' "$buffer"
+}
+
+tcp_window_tune() {
+  local bandwidth="" rtt="" memory_mb="" buffer=""
+  memory_mb="$(awk '/^MemTotal:/ {printf "%d", $2 / 1024; exit}' /proc/meminfo 2>/dev/null)"
+  is_uint_in_range "$memory_mb" 1 67108864 || { warn "无法读取总内存，已取消窗口调优"; return 1; }
+  read_tty bandwidth "线路带宽 Mbps（取两端较小值，默认 1000） > " "1000"
+  read_tty rtt "到主要用户的 RTT 毫秒（默认 150） > " "150"
+  buffer="$(tcp_window_buffer_bytes "$bandwidth" "$rtt" "$memory_mb")" || {
+    warn "带宽须为 1-1000000 Mbps，RTT 须为 1-60000 毫秒的整数"
+    return 1
+  }
+  print_kv "窗口计算" "2 × BDP；16-512 MiB，并限制为总内存的 30% 以内"
+  print_kv "总内存" "${memory_mb} MiB"
+  tcp_fixed_apply "$buffer"
+}
+
+tcp_fixed_menu() {
+  local choice=""
+  while true; do
+    menu_header "固定调优" "TCP 窗口 · BBR + FQ · 固定保存与运行校验"
+    menu_item 1 "通用预设" "固定 64 MiB 窗口，无需填写线路参数"
+    menu_item 2 "TCP 窗口调优" "手填带宽与 RTT，按 BDP 计算，限制内存占用"
+    menu_back_item
+    read_tty choice "请输入编号 > " ""
+    case "$choice" in
+      1) tcp_fixed_apply || true; pause_up ;;
+      2) tcp_window_tune || true; pause_up ;;
+      0|q|Q) return 0 ;;
+      *) warn "无效选项"; pause_up ;;
+    esac
+  done
+}
+
+icmp_status_text() {
+  local label key value
+  for label in IPv4 IPv6; do
+    if [[ "$label" == IPv4 ]]; then key=net.ipv4.icmp_echo_ignore_all; else key=net.ipv6.icmp.echo_ignore_all; fi
+    value="$(sysctl -n "$key" 2>/dev/null || true)"
+    case "$value" in
+      0) printf '%s Ping 应答开放；' "$label" ;;
+      1) printf '%s Ping 应答屏蔽；' "$label" ;;
+      *) printf '%s 内核开关不可用；' "$label" ;;
+    esac
+  done
+  printf '\n'
+}
+
+icmp_restore_runtime() {
+  local snapshot="$1" key value failed=0
+  while IFS='=' read -r key value; do
+    case "$key" in net.ipv4.icmp_echo_ignore_all|net.ipv6.icmp.echo_ignore_all) ;; *) return 1 ;; esac
+    sysctl -w "$key=$value" >/dev/null 2>&1 || failed=1
+  done < "$snapshot"
+  return "$failed"
+}
+
+icmp_set_echo() {
+  local ignored="$1" key value snapshot="" rollback="" staged="" rc=0 had_file=0 rollback_rc=0
+  case "$ignored" in 0|1) ;; *) return 1 ;; esac
+  have_cmd sysctl || { warn "缺少 sysctl，无法修改 ICMP"; return 1; }
+  if [[ -L "$ICMP_SYSCTL_FILE" || ( -e "$ICMP_SYSCTL_FILE" && ! -f "$ICMP_SYSCTL_FILE" ) ]]; then
+    warn "ICMP 配置路径不是普通文件，已取消"
+    return 1
+  fi
+  if [[ -f "$ICMP_SYSCTL_FILE" ]] && ! grep -Fxq '# managed by opsbox.sh - ICMP echo replies' "$ICMP_SYSCTL_FILE"; then
+    warn "ICMP 配置文件不是 OpsBox 创建的，已保留原文件"
+    return 1
+  fi
+  for key in net.ipv4.icmp_echo_ignore_all net.ipv6.icmp.echo_ignore_all; do
+    value="$(sysctl -n "$key" 2>/dev/null || true)"
+    case "$value" in
+      0|1) snapshot+="${key}=${value}"$'\n' ;;
+      *) info "内核未提供 ${key}，跳过该协议" ;;
+    esac
+  done
+  [[ -n "$snapshot" ]] || { warn "未找到可用的 ICMP 开关，未修改配置"; return 1; }
+  ensure_dir "$(dirname "$ICMP_SYSCTL_FILE")" || return 1
+  rollback="$(mktemp -d "$(dirname "$ICMP_SYSCTL_FILE")/.opsbox-icmp.XXXXXX")" || return 1
+  staged="$rollback/candidate.conf"
+  if [[ -f "$ICMP_SYSCTL_FILE" ]]; then
+    cp -p "$ICMP_SYSCTL_FILE" "$rollback/original.conf" || { rm -rf -- "$rollback"; return 1; }
+    had_file=1
+  fi
+  if ! printf '%s' "$snapshot" > "$rollback/runtime.snapshot"; then
+    rm -rf -- "$rollback"
+    return 1
+  fi
+  {
+    printf '%s\n' '# managed by opsbox.sh - ICMP echo replies'
+    while IFS='=' read -r key value; do
+      printf '%s = %s\n' "$key" "$ignored"
+    done < "$rollback/runtime.snapshot"
+  } > "$staged" || rc=1
+  if (( rc == 0 )); then chmod 644 "$staged" && mv -f "$staged" "$ICMP_SYSCTL_FILE" || rc=1; fi
+  if (( rc == 0 )); then sysctl -p "$ICMP_SYSCTL_FILE" > "$rollback/apply.log" 2>&1 || rc=1; fi
+  if (( rc == 0 )); then
+    while IFS='=' read -r key value; do
+      [[ "$(sysctl -n "$key" 2>/dev/null)" == "$ignored" ]] || rc=1
+    done < "$rollback/runtime.snapshot"
+  fi
+  if (( rc != 0 )); then
+    warn "ICMP 应用或校验失败，正在恢复原配置和运行值"
+    if (( had_file )); then
+      mv -f "$rollback/original.conf" "$ICMP_SYSCTL_FILE" || rollback_rc=1
+    else
+      rm -f -- "$ICMP_SYSCTL_FILE" || rollback_rc=1
+    fi
+    icmp_restore_runtime "$rollback/runtime.snapshot" || rollback_rc=1
+    if (( rollback_rc == 0 )); then
+      rm -rf -- "$rollback"
+    else
+      warn "部分 ICMP 状态未恢复，回滚文件保留于 ${rollback}"
+    fi
+    return 1
+  fi
+  rm -rf -- "$rollback"
+  if [[ "$ignored" == 1 ]]; then ok "已屏蔽 ICMP Ping 应答，重启后保持"; else ok "已开放 ICMP Ping 应答，重启后保持"; fi
+  info "仅调整本机 Ping 应答；保留路径 MTU 发现与 IPv6 邻居发现等必要 ICMP 报文"
+  [[ "$ignored" != 0 ]] || info "如果仍无法 Ping，请检查防火墙及云安全组的 ICMP 规则"
 }
 
 tcp_restore_default() {
@@ -11779,27 +11924,34 @@ ipv6_menu() {
 
 tcp_menu() {
   while true; do
-    menu_header "TCP / BBR" "固定预设 · 动态实测 · BDP 推导与安全恢复"
+    menu_header "TCP / BBR 调优" "固定窗口 · 动态实测 · ICMP 管理与安全恢复"
     menu_section "当前状态"
     print_kv "固定调优" "$(tcp_fixed_status_text)"
     print_kv "动态调整" "$(tcpfit_status_summary)"
+    print_kv "ICMP" "$(icmp_status_text)"
     menu_section "检测与调优"
     menu_item "1" "检查 BBR 支持" "查看当前、可用拥塞控制算法"
-    menu_item "2" "固定通用调优" "BBR + FQ + 64 MiB 缓冲，无需测试"
+    menu_item "2" "固定调优" "通用 64 MiB 预设 / TCP 窗口调优"
     menu_item "3" "动态实测调优" "按带宽、RTT、内存推导 BDP 并实测限速器拐点"
     menu_section "兼容与恢复"
     menu_item "4" "应用 DMIT 默认参数" "兼容 DMIT 镜像参数，不与动态调优叠加"
-    menu_item "5" "恢复修改前参数" "优先使用首次修改时的原值备份"
+    menu_section "ICMP / Ping"
+    menu_item "5" "屏蔽 ICMP" "关闭本机 Ping 应答，不屏蔽必要 ICMP 报文"
+    menu_item "6" "开放 ICMP" "恢复本机 Ping 应答"
+    menu_section "恢复"
+    menu_item "7" "恢复修改前参数" "恢复 TCP；ICMP 应答单独使用 5 / 6 管理"
     menu_back_item
 
     local c=""
     read_tty c "请输入编号 > " ""
     case "$c" in
       1) bbr_check || true; pause_up ;;
-      2) tcp_fixed_apply || true; pause_up ;;
+      2) tcp_fixed_menu ;;
       3) tcpfit_menu ;;
       4) tcp_restore_dmit_default || true; pause_up ;;
-      5) tcp_restore_default || true; pause_up ;;
+      5) icmp_set_echo 1 || true; pause_up ;;
+      6) icmp_set_echo 0 || true; pause_up ;;
+      7) tcp_restore_default || true; pause_up ;;
       0|q|Q) return 0 ;;
       *) warn "无效选项"; pause_up ;;
     esac

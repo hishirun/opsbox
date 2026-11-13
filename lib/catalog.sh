@@ -29,7 +29,7 @@ realm|Realm 转发|realm|端口转发 TCP UDP 中转|menu
 network|网络诊断与修复|network|优先级 IPv4 IPv6 连通|menu
 ipv6-system|宿主机 IPv6|ipv6-system|开关 路由 SLAAC 修复|menu
 nat66|IPv6 地址池 / NAT66|nat66|系统 随机出口 /64 /128|menu
-tcp|TCP / BBR 调优|tcp|网络 优化 tcpfit 缓冲|menu
+tcp|TCP / BBR 调优|tcp|网络 优化 tcpfit 缓冲 窗口 固定 BDP ICMP Ping|menu
 dns|DNS 设置|dns|解析 Cloudflare Google Quad9|menu
 mtu|MTU 管理|mtu|网络 探测 包大小|menu
 system|系统工具|system|进程 端口 服务 管理|menu

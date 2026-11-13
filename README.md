@@ -29,7 +29,7 @@ sudo bash opsbox.sh
 首页直接放置常用工具，不必逐级寻找：
 
 ```text
-✦ OpsBox  v1.3.0 · 星光工具箱
+✦ OpsBox  v1.4.0 · 星光工具箱
 (ฅ'ω'ฅ)  常用工具
 
 ✧ 快速开始
@@ -75,6 +75,8 @@ opsbox firewall            # UFW/firewalld
 opsbox reverse-proxy       # HTTPS 反代
 opsbox recovery            # 快照、恢复、迁移
 ```
+
+`opsbox tcp` 的第 2 项为“固定调优”，可选 64 MiB 通用预设或按手填带宽、RTT 计算 TCP 窗口；第 5 项“屏蔽 ICMP”、第 6 项“开放 ICMP”切换本机 Ping 应答并持久保存，第 7 项恢复原 TCP 参数。详细范围和回滚行为见[系统模块说明](modules/system/README.md#tcp--bbr-与-icmp)。
 
 模块文档：[代理协议](modules/vps-proxy/README.md)、[随机 IPv6 SOCKS5](modules/random-ipv6-socks/README.md)、[Realm](modules/realm/README.md)、[SSH 快捷管理](modules/ssh/README.md)、[系统与网络模块](modules/system/README.md)。
 

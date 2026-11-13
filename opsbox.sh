@@ -2,7 +2,7 @@
 set -uo pipefail
 
 OPSBOX_ROOT=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-VERSION=1.3.0
+VERSION=1.4.0
 export OPSBOX_VERSION=$VERSION
 # shellcheck source=lib/ui.sh
 source "$OPSBOX_ROOT/lib/ui.sh"

@@ -11,7 +11,7 @@
 | 网络诊断、修复、IPv4/IPv6 优先级 | `opsbox network` |
 | IPv6 开关与修复 | `opsbox ipv6-system` |
 | 地址池、宿主机 NAT66 随机出网 | `opsbox nat66` |
-| BBR、固定 TCP 参数、tcpfit 实测调优 | `opsbox tcp` |
+| BBR、固定 TCP 窗口、tcpfit 实测调优、ICMP 开关 | `opsbox tcp` |
 | DNS 与 MTU | `opsbox dns`、`opsbox mtu` |
 | 系统、进程、监听端口和服务健康 | `opsbox system` |
 | 中国时区 | `opsbox timezone` |
@@ -27,6 +27,22 @@
 需要 Linux、Bash 4+ 和 root。具体操作按需安装相应依赖；并非所有功能都适用于全部发行版。cloud-init 的 DMIT/PVE 配套配置仅用于相符的云主机环境；路由器固件及 macOS 不在此模块的运行范围内。
 
 菜单支持 `0/b` 返回、`h` 回 OpsBox 首页、`q` 退出；普通配置字段中的 h/q 仍按输入值处理。结果页只停顿一次，CLI 直接查看命令不额外等待按键。
+
+## TCP / BBR 与 ICMP
+
+| 编号 | 操作 |
+| --- | --- |
+| 1 | 检查 BBR 支持 |
+| 2 | 固定调优：64 MiB 通用预设 / TCP 窗口调优 |
+| 3 | 动态实测调优（tcpfit） |
+| 4 | 应用 DMIT 默认参数 |
+| 5 | 屏蔽 ICMP（关闭本机 Ping 应答） |
+| 6 | 开放 ICMP（恢复本机 Ping 应答） |
+| 7 | 恢复修改前的 TCP 参数 |
+
+固定调优中的 TCP 窗口模式沿用原窗口工具的带宽时延积思路：手填线路带宽（Mbps）和往返延迟 RTT（毫秒），取 `2 × BDP`；一般限制在 16–512 MiB，再以总内存的 30% 为上限。内存较小时允许低于 16 MiB。窗口值与 BBR/FQ 参数固定保存，不主动测速；应用前预览并要求输入 `FIXED`。64 MiB 预设保持原有行为。两种模式共用原参数备份、逐项运行校验与失败回滚，动态 tcpfit 生效时拒绝叠加固定参数。
+
+ICMP 开关独立保存到 `/etc/sysctl.d/99-opsbox-icmp.conf`，只修改内核支持的 `net.ipv4.icmp_echo_ignore_all` 和 `net.ipv6.icmp.echo_ignore_all`。按照[Linux 内核文档](https://docs.kernel.org/networking/ip-sysctl.html)，这两个开关控制 Echo Request 的应答，不会屏蔽路径 MTU 发现、IPv6 邻居发现等必要报文。缺少 IPv6 开关时跳过并提示；应用或校验失败会恢复先前文件和运行值。第 7 项只恢复 TCP，ICMP 使用第 5/6 项单独控制。开放本机 Ping 应答后，防火墙和云安全组仍需允许 ICMP 才能从公网 Ping 通。
 
 ## 导航站主题
 
