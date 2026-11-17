@@ -2,7 +2,7 @@
 
 # ===================================================================
 # VLESS + Vision + REALITY 一键安装/管理脚本 (基于官方 Xray-core)
-# 仓库: https://github.com/ridaiqianhe/vps-proxy
+# 仓库: https://github.com/hishirun/opsbox
 # 上游: https://github.com/XTLS/Xray-core  安装器: XTLS/Xray-install
 # ===================================================================
 

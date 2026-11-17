@@ -2,7 +2,7 @@
 
 # ===================================================================
 # Hysteria2 一键安装/管理脚本
-# 仓库: https://github.com/ridaiqianhe/vps-proxy
+# 仓库: https://github.com/hishirun/opsbox
 # ===================================================================
 
 PURPLE='\e[38;5;135m'; CYAN='\e[96m'; GREEN='\e[92m'; YELLOW='\e[93m'; BLUE='\e[94m'; GRAY='\e[90m'; RED='\e[31m'; NC='\e[0m'

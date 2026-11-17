@@ -2,7 +2,7 @@
 
 # ===================================================================
 # TCP 调优脚本 (BBR + 按 BDP 放大缓冲区,透明可回退)
-# 仓库: https://github.com/ridaiqianhe/vps-proxy
+# 仓库: https://github.com/hishirun/opsbox
 #
 # 原理: 单连接吞吐 = 窗口 / RTT。要跑满高带宽高延迟(跨境)线路,
 #       缓冲区上限需 >= 带宽时延积 BDP = 带宽 x RTT。

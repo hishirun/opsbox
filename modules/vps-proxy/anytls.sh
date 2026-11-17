@@ -4,7 +4,7 @@
 # AnyTLS 一键安装/管理脚本 (基于官方 sing-box)
 # 普通 TLS 模式可供 Surge、mihomo、Shadowrocket 等 AnyTLS 客户端使用。
 # AnyTLS + Reality 请从主菜单末尾的 sing-box 专属选项安装。
-# 仓库: https://github.com/ridaiqianhe/vps-proxy
+# 仓库: https://github.com/hishirun/opsbox
 # 上游: https://github.com/SagerNet/sing-box
 # ===================================================================
 

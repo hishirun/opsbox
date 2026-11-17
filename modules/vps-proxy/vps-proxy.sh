@@ -2,13 +2,13 @@
 
 # ===================================================================
 # vps-proxy — 常用代理协议一键脚本合集入口
-# 仓库: https://github.com/ridaiqianhe/opsbox
+# 仓库: https://github.com/hishirun/opsbox
 #
 # 用法:
-#   bash <(wget -qO- https://raw.githubusercontent.com/ridaiqianhe/opsbox/main/modules/vps-proxy/vps-proxy.sh)
+#   bash <(wget -qO- https://raw.githubusercontent.com/hishirun/opsbox/main/modules/vps-proxy/vps-proxy.sh)
 # ===================================================================
 
-REPO_RAW="https://raw.githubusercontent.com/ridaiqianhe/opsbox/main/modules/vps-proxy"
+REPO_RAW="https://raw.githubusercontent.com/hishirun/opsbox/main/modules/vps-proxy"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 

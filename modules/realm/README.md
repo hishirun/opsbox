@@ -7,7 +7,7 @@
 opsbox realm
 
 # 也可以单独下载运行（Linux root）
-wget -N https://raw.githubusercontent.com/ridaiqianhe/opsbox/main/modules/realm/realm.sh
+wget -N https://raw.githubusercontent.com/hishirun/opsbox/main/modules/realm/realm.sh
 chmod +x realm.sh
 ./realm.sh
 ```

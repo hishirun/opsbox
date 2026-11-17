@@ -4,7 +4,7 @@
 # AnyTLS + Reality 一键安装/管理脚本
 # 运行核心: sing-box (最低 1.12.12，安装/更新时跟随官方稳定版)
 # 注意: 本模式仅适用于 sing-box 客户端，不兼容 Surge/Mihomo 的普通 AnyTLS 模式。
-# 仓库: https://github.com/ridaiqianhe/vps-proxy
+# 仓库: https://github.com/hishirun/opsbox
 # ===================================================================
 
 # 这是交互式脚本，不使用 set -e；每个关键步骤显式检查并返回错误。

@@ -2,7 +2,7 @@
 
 # ===================================================================
 # Trojan 一键安装/管理脚本 (基于 trojan-go, 自签证书 + 允许不安全)
-# 仓库: https://github.com/ridaiqianhe/vps-proxy
+# 仓库: https://github.com/hishirun/opsbox
 # 上游: https://github.com/p4gefau1t/trojan-go
 # ===================================================================
 

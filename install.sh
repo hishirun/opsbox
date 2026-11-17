@@ -18,7 +18,7 @@ fi
 
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
-url="https://codeload.github.com/ridaiqianhe/opsbox/tar.gz/$ref"
+url="https://codeload.github.com/hishirun/opsbox/tar.gz/$ref"
 if command -v curl >/dev/null 2>&1; then
     curl -fSL --retry 2 --connect-timeout 15 --max-time 180 "$url" -o "$work/source.tar.gz"
 elif command -v wget >/dev/null 2>&1; then

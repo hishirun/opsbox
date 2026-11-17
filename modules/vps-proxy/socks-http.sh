@@ -4,7 +4,7 @@
 # SOCKS5 / HTTP 代理一键安装管理脚本（基于官方 sing-box）
 # - Mixed: 同一端口提供 SOCKS5 与 HTTP，明文传输，仅建议可信网络使用。
 # - HTTPS: HTTP CONNECT over TLS，适合公网使用，不支持 UDP。
-# 仓库: https://github.com/ridaiqianhe/vps-proxy
+# 仓库: https://github.com/hishirun/opsbox
 # 上游: https://github.com/SagerNet/sing-box
 # ===================================================================
 

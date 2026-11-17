@@ -2,6 +2,8 @@
 
 Merged on 2026-10-29. Each source history is retained as a merge parent; no source repository was deleted or archived.
 
+The GitHub account was renamed from `ridaiqianhe` to `hishirun`. The current maintenance repository is [hishirun/opsbox](https://github.com/hishirun/opsbox). The table below records names at the time of import; these historical links are not used by the installer and may no longer resolve.
+
 | Original repository | Imported commit | Module |
 | --- | --- | --- |
 | [ridaiqianhe/vps-proxy](https://github.com/ridaiqianhe/vps-proxy) | `eccc5e02ffcbe803ab1f477c9dbfb6aafe182a1d` | `modules/vps-proxy` |

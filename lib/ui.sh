@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared, dependency-free terminal presentation. Importing this file has no side effects.
-OPSBOX_VERSION=${OPSBOX_VERSION:-1.4.0}
+OPSBOX_VERSION=${OPSBOX_VERSION:-1.4.1}
 OPSBOX_HOME_RC=20
 OPSBOX_QUIT_RC=21
 UI_RESET='' UI_BOLD='' UI_ACCENT='' UI_DIM='' UI_GOOD='' UI_WARN=''

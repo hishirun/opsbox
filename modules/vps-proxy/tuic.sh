@@ -3,7 +3,7 @@
 # ===================================================================
 # TUIC v5 一键安装/管理脚本
 # 基于持续维护的 Itsusinn/tuic 服务端，使用自签名 TLS 证书。
-# 仓库: https://github.com/ridaiqianhe/vps-proxy
+# 仓库: https://github.com/hishirun/opsbox
 # 上游: https://github.com/Itsusinn/tuic
 # ===================================================================
 
